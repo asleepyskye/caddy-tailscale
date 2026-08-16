@@ -37,11 +37,13 @@ func (t *Transport) CaddyModule() caddy.ModuleInfo {
 
 // UnmarshalCaddyfile populates a Transport config from a caddyfile.
 //
-// We only support a single token identifying the name of a node in the App config.
-// For example:
+// We support a single token identifying the name of a node in the App config,
+// and an optional block with a "tls" subdirective. For example:
 //
 //	reverse_proxy {
-//	  transport tailscale my-node
+//	  transport tailscale my-node {
+//	    tls
+//	  }
 //	}
 //
 // If a node name is not specified, a default name is used.
@@ -53,6 +55,18 @@ func (t *Transport) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		t.Name = d.Val()
 	} else {
 		t.Name = defaultNodeName
+	}
+
+	for d.NextBlock(0) {
+		switch d.Val() {
+		case "tls":
+			if d.NextArg() {
+				return d.ArgErr()
+			}
+			t.EnableTLS(new(reverseproxy.TLSConfig))
+		default:
+			return d.Errf("unrecognized subdirective: %s", d.Val())
+		}
 	}
 
 	return nil
